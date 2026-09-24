@@ -191,7 +191,7 @@ for sname, (plan, bx, zb, riser, n) in STAIRS.items():
         g = Polygon(quad)
         if not g.is_valid or g.area < 0.02: g = g.convex_hull
         if g.area < 0.02: continue
-        add_prism(f'{sname}_STEP_{k:02d}', 'EXTERIOR_STAIRS', 'STONE_CLADDING', g, zb - 0.05, ztop)
+        add_prism(f'{sname}_STEP_{k:02d}', 'EXTERIOR_STAIRS', 'TRAVERTINE', g, zb - 0.05, ztop)
     OUT['stats'][f'stair_{sname}'] = dict(steps=len(ks), z_bottom=zb, z_top=round(zt, 3), riser=round(riser, 4))
 
 # stair pits (BM5, BM7): retaining walls; BM7 labelled "-0.70 Parapet ust kotu"
@@ -210,25 +210,94 @@ t000 = pick(lambda h: not (16.4 < h.bounds[0] < 16.6 and h.area < 20) and not (2
 t000 = t000.buffer(0.22, join_style=2).buffer(-0.02, join_style=2).difference(Bu)
 t070 = t070.buffer(0.2, join_style=2).difference(t000).difference(Bu)
 t040 = t040.buffer(0.2, join_style=2).difference(t000).difference(t070).difference(Bu)
-add_prism('TERRACE_000', 'ENTRANCE', 'STONE_CLADDING', t000, -1.0, 0.0)
-add_prism('TERRACE_070', 'ENTRANCE', 'STONE_CLADDING', t070, -1.0, -0.70)
-add_prism('TERRACE_040', 'ENTRANCE', 'STONE_CLADDING', t040, -1.0, -0.40)
+add_prism('TERRACE_000', 'ENTRANCE', 'GRANITE', t000, -1.0, 0.0)
+add_prism('TERRACE_070', 'ENTRANCE', 'GRANITE', t070, -1.0, -0.70)
+add_prism('TERRACE_040', 'ENTRANCE', 'GRANITE', t040, -1.0, -0.40)
 # SE open terrace: 95 cm wall (top +0.95) on its free edges (x=48.1 side and south edge), per "h: 95 cm Duvar" / +0.95
 se = max(holes, key=lambda h: h.area)
 edge = se.buffer(0.2, join_style=2).difference(se.buffer(0.0))
 free = edge.intersection(unary_union([sbox(47.5, -22, 48.7, -12.2), sbox(47.5, -22, 77.5, -20.9), Polygon([(76.4, -21.8), (81.6, -16.6), (80.9, -16.1), (75.9, -21.2)])]))
-add_prism('TERRACE_PARAPET_095', 'PARAPETS', 'STONE_CLADDING', free.difference(Bu), 0.0, 0.95)
+# NOTE: site photos show only a railing on this edge; the DWG 'h: 95 cm Duvar' is read as the terrace edge wall
+# from grade (-1.00) to the terrace (~0.00), which the TERRACE_000 podium already forms. No wall above the terrace.
 
 # ---------------------------------------------------------------- sunken pool court (-4.15) between A and the NW wing of B
 court = max(pickle.load(open('extpolys.pkl', 'rb')), key=lambda p: p.area)
-add_prism('COURT_FLOOR', 'BUILDING_SHELL', 'STONE_CLADDING', court.difference(Bu), -4.45, -4.15)
+add_prism('COURT_FLOOR', 'BUILDING_SHELL', 'GRANITE', court.difference(Bu), -4.45, -4.15)
 # building faces toward the court continue down to the court floor (basement facade visible here)
 for nm, poly in (('A', O['A_zem']), ('B', O['B_zem'])):
     r = poly.difference(poly.buffer(-WALL_T, join_style=2)).intersection(court.buffer(0.6))
-    add_prism(f'{nm}_COURT_BASEMENT_WALL', 'EXTERIOR_WALLS', 'PLASTER', r, -4.15, -1.0, cut=nm)
+    add_prism(f'{nm}_COURT_BASEMENT_WALL', 'EXTERIOR_WALLS', 'PLASTER_A' if nm == 'A' else 'TRAVERTINE', r, -4.15, -1.0, cut=nm)
 # free court edge (not against a building): retaining wall to the -0.70 parapet level marked on the stair's outer arc
 cedge = court.buffer(0.2, join_style=2).difference(court).difference(Bu.buffer(0.3))
 add_prism('COURT_RETAINING_WALL', 'EXTERIOR_STAIRS', 'CONCRETE', cedge, -4.15, -0.70)
+
+# ---------------------------------------------------------------- cornice consoles (photos): under the A cornice soffit,
+# between neighbouring top-floor windows of each recessed bay; triangular, 0.20 thick, 0.60 deep at the wall
+from outline import outline as _outline
+A_cat = _outline('A_cat', layers=('r 4', 'r 2', 'Betonarme', 'r 3', 'r 5'), close=0.3)[0]
+A_cat = Polygon(A_cat.exterior).union(O['A_tip']).buffer(0.01, join_style=2).buffer(-0.01, join_style=2)
+ovh = [g for g in (lambda d: d.geoms if hasattr(d, 'geoms') else [d])(A_cat.difference(O['A_tip'])) if g.area > 5]
+top = [o for o in OUT['windows'] if o['ring'] == 'A_tip' and 13.3 < o['z0'] < 14.2]
+bv = []; bfc = []; nb = 0
+for zone in ovh:
+    ws = [o for o in top if zone.buffer(0.4).contains(Point(np.mean([o['p0'], o['p1']], axis=0)))]
+    if len(ws) < 2: continue
+    n = np.array(ws[0]['n']); t = np.array([-n[1], n[0]])
+    ws.sort(key=lambda o: np.mean([o['p0'], o['p1']], axis=0) @ t)
+    mids = [(np.mean([a['p0'], a['p1']], axis=0) + np.mean([b['p0'], b['p1']], axis=0)) / 2 for a, b in zip(ws[:-1], ws[1:])]
+    ends = [np.mean([ws[0]['p0'], ws[0]['p1']], axis=0) - t * (np.linalg.norm(mids[0] - np.mean([ws[0]['p0'], ws[0]['p1']], axis=0)) if mids else 1.2),
+            np.mean([ws[-1]['p0'], ws[-1]['p1']], axis=0) + t * (np.linalg.norm(mids[-1] - np.mean([ws[-1]['p0'], ws[-1]['p1']], axis=0)) if mids else 1.2)]
+    for m in mids + ends:
+        if not zone.buffer(0.3).contains(Point(m)): continue
+        # depth: from wall face to cornice front
+        d = 0.0
+        while d < 2.5 and A_cat.buffer(-0.02).contains(Point(m + n * (d + 0.05))): d += 0.05
+        if d < 0.3: continue
+        k0 = len(bv)
+        for sgn in (-0.10, 0.10):
+            q = m + t * sgn
+            bv += [[*q, 15.80], [*(q + n * d), 15.80], [*q, 15.20]]
+        bfc += [[k0 + 0, k0 + 1, k0 + 2], [k0 + 5, k0 + 4, k0 + 3], [k0 + 0, k0 + 3, k0 + 4, k0 + 1], [k0 + 1, k0 + 4, k0 + 5, k0 + 2], [k0 + 2, k0 + 5, k0 + 3, k0 + 0]]
+        nb += 1
+OUT['meshes'].append(dict(name='A_CORNICE_CONSOLES', coll='PARAPETS', mat='PLASTER_A', verts=bv, faces=bfc, thick=0.0))
+OUT['stats']['cornice_consoles'] = nb
+
+# ---------------------------------------------------------------- railings: stainless tube, h 0.90 (DWG note "Alu. boru korkuluk h: 90 cm", photos)
+# on free terrace edges: not against the building, not across stair flights / portal
+stairsU = unary_union([Polygon(q['rings'][0]) for q in OUT['prisms'] if '_STEP_' in q['name']]).buffer(0.6)
+portal = Polygon([np.array([22.2, -18.4]), np.array([25.6, -15.0]), np.array([26.2, -15.6]), np.array([22.8, -19.0])]).buffer(0.8)
+keepout = unary_union([Bu.buffer(0.7), stairsU, portal])
+rv = []; rf = []
+def rbox(p, q, z0, z1, wd):
+    p, q = np.array(p), np.array(q); d = q - p; L = np.linalg.norm(d)
+    if L < 1e-3: return
+    d /= L; nn = np.array([-d[1], d[0]]) * wd / 2; dd = d * 0.0
+    k = len(rv)
+    for zz in (z0, z1):
+        rv.extend([[*(p - nn), zz], [*(q - nn), zz], [*(q + nn), zz], [*(p + nn), zz]])
+    rf.extend([[k + a for a in f] for f in ((3, 2, 1, 0), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7))])
+nrail = 0.0
+for tname, tpoly, zt in (('000', t000, 0.0), ('040', t040, -0.40)):
+    for g in (tpoly.geoms if hasattr(tpoly, 'geoms') else [tpoly]):
+        edge = LineString(g.exterior.coords).difference(keepout)
+        for ln in (edge.geoms if hasattr(edge, 'geoms') else [edge]):
+            if ln.is_empty or ln.length < 1.0: continue
+            c = np.array(ln.coords)
+            # inset 0.08 m into the terrace
+            for a, b in zip(c[:-1], c[1:]):
+                L = np.linalg.norm(b - a)
+                if L < 0.05: continue
+                rbox(a, b, zt + 0.87, zt + 0.92, 0.05)                 # handrail
+                for zz in (0.25, 0.45, 0.65):
+                    rbox(a, b, zt + zz, zt + zz + 0.02, 0.02)          # rods (photo: horizontal rods)
+                npost = max(1, int(L / 1.5))
+                for i in range(npost + 1):
+                    pp = a + (b - a) * i / npost
+                    d_ = (b - a) / L * 0.025
+                    rbox(pp - d_, pp + d_, zt, zt + 0.92, 0.05)
+                nrail += L
+OUT['meshes'].append(dict(name='TERRACE_RAILINGS', coll='RAILINGS', mat='STAINLESS', verts=rv, faces=rf, thick=0.0))
+OUT['stats']['railing_length_m'] = round(nrail, 1)
 
 OUT['stats']['counts'] = dict(prisms=len(OUT['prisms']), meshes=len(OUT['meshes']), openings=len(OUT['openings']))
 json.dump(OUT, open('model.json', 'w'))

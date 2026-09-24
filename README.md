@@ -11,6 +11,9 @@ Kaynak: `source/BLK-15.01_tki misafirhane -mevcut mimari_2015.05.05.dwg` (TKİ G
 | `model/model_data.json` | Modelin üretildiği ara veri (poligonlar, kotlar, açıklıklar) |
 | `qc/COMPARE_*.png` | DWG görünüşü (üst) ↔ model ortografik render (alt), aynı ölçek ve orijin |
 | `qc/FRONT…/BACK…/LEFT…/RIGHT…`, `qc/AERIAL_*` | Dört ana cephe + iki kuşbakışı |
+| `model/textures/` | Fotoğraflara göre üretilmiş döşenebilir PBR dokular (renk `.jpg` + normal `.png`) |
+| `qc/photo_views/` | Saha fotoğraflarıyla aynı açılardan Cycles render'ları ve fotoğraf ↔ model karşılaştırmaları |
+| `source/photos/` | Referans saha fotoğrafları (1–4) |
 | `tools/` | Tam üretim hattı (`tools/run_all.sh`): DWG → model, tekrar üretilebilir |
 
 Model yalnızca **dış kabuk**tur; iç mekân (bölmeler, iç kapılar, mobilya, tesisat, asma tavan, iç merdivenler, galeri korkulukları, iç kolonlar) modellenmemiştir.
@@ -78,7 +81,8 @@ Pencere kotları (görünüşler): A zemin +1.60/+3.20, tip katlar +4.60/+6.20 �
 | `CANOPIES` | Güney pergola kirişleri (üst +4.00, GD'de +4.70) |
 | `COLUMNS` | 14 serbest kolon (pergola sırası y≈−11 ve avlu kolonları) |
 | `ENTRANCE` | Teraslar: ±0.00 pergola/teras döşemesi, −0.70 basamak teras, −0.40 giriş sahanlığı, 272 m² GD açık terası |
-| `BALCONIES`, `RAILINGS`, `RAMPS` | Boş – DWG'de balkon ve rampa yok; korkuluklar için bkz. madde 8 |
+| `RAILINGS` | Teras kenarı paslanmaz boru korkuluk (fotoğraf + DWG notu) |
+| `BALCONIES`, `RAMPS` | Boş – DWG'de ve fotoğraflarda balkon/rampa yok |
 
 **Malzemeler (görünüş notlarından):** *Silikon esaslı dış cephe sıvası* (duvarlar), *Traverten kaplama* (A zemin kat, denizlikler), *Taş kaplama + 2 sıra bisküvi tuğla* (subasman bandı), *Harpuştalı taş kaplama alınlı* (parapet denizlikleri), *Renkli eloksal alüminyum doğrama + ısıcam*, *Renkli metal yaprak çatı örtüsü*. Renk bilgisi olmayan malzemeler (sıva, doğrama, çatı metali) nötr tonda bırakıldı; her malzemede DWG açıklaması `dwg_description` özelliğinde duruyor.
 
@@ -126,20 +130,50 @@ Dört ana cephe ortografik olarak render edildi (FRONT = batı/teras tarafı, BA
 - Doğrama profil detayları (yalnızca çerçeve + cam + ana kayıtlar), görünüşlerdeki pencere kanat bölüntüleri ve açılım çizgileri.
 - Kat hizası "fuga" derz çizgileri ve cephe bantları (yalnızca çizgi olarak çizilmiş, derinlik yok).
 - Yağmur olukları, iniş boruları, çatı drenajı.
-- **Korkuluklar:** "Alü. boru korkuluk h:90 cm" (GD teras/merdivenler) ve "Krom çelik boru korkuluk" (atrium, iç) notları var, ama dış korkulukların hattı çizimde net değil. Tahmin edilmemesi için modellenmedi; `RAILINGS` koleksiyonu boş bırakıldı.
+- Korkuluklar, fotoğraflar geldikten sonra teras kenarlarına eklendi (bkz. "Gerçekçi kaplama"). Hat, DWG teras sınırından otomatik alındı; tek tek fotoğrafla doğrulanmadı.
 - Havuzlar (avluda "HAVUZ", −4.60/−1.20 kotları). Yalnızca avlu tabanı −4.15.
 - Arazi/peyzaj, 1/20 teras detayları, tesisat kapakları, logo/antet.
 - Zemin altında kalan bodrum duvarları (avlu ve merdiven şaftları dışında). Subasman kütlesi dolu blok olarak bırakıldı.
+
+## Gerçekçi kaplama (saha fotoğraflarına göre)
+
+Malzemeler dört saha fotoğrafına göre ayarlandı ve dokulu PBR malzemeye dönüştürüldü (renk + normal haritası, metre ölçekli UV). Dokular `tools/make_textures.py` ile prosedürel üretildi; döşenebilir, fotoğraf kopyası değil.
+
+| Malzeme | Nerede | Kaynak |
+|---|---|---|
+| `PLASTER_A`: krem, granüllü sıva, 1.5 m aralıklı yatay derz | A blok tip katlar, saçak, konsollar, çatı çekirdeği | Foto 2, 4 + DWG "Silikon esaslı dış cephe sıvası", "Fuga" |
+| `TRAVERTINE`: krem traverten, 1.20 × 0.60 m plaka | A zemin kat, B/C duvarları, kolonlar, pergola kirişleri, basamaklar | Foto 1, 3 + DWG "Traverten kaplama" |
+| `ASHLAR`: bej kesme taş, 40 × 20 cm, şaşırtmalı | Subasman (zeminden ≈1.1 m, +0.10'a kadar) | Foto 2, 4 + DWG "Taş kaplama" |
+| `RED_MARBLE`: koyu kırmızı damarlı mermer | B/C parapet harpuşta/alın bandı (30 cm), giriş portalı | Foto 1, 3 |
+| `OCHRE`: hardal sarı sıva | Pergola/kolonat arkasındaki cephe (0 → +3.70) | Foto 1, 3 |
+| `COPING_A`: oker | A blok parapet harpuştası | Foto 2, 4 |
+| `RED_ALU`: kırmızı eloksal alüminyum | Tüm pencere/kapı doğramaları (çift kanatlı pencerelerde orta dikme) | Foto 1–4 + DWG "Renkli eloksal alü." |
+| `SOVE`: açık traverten | Pencere söveleri ve denizlikleri | Foto 4 + DWG "Söve", "Traverten denizlik" |
+| `CURTAIN`: bej tül perde paneli | A blok oda pencerelerinin 12 cm arkası (iç mekân modellenmedi, yalnız cam arkası panel) | Foto 1–4 |
+| `BLUE_GLASS` + `RED_PAINT` | Atrium eğik giydirme cephesi, kırmızı üst alın | Foto 3 |
+| `GRANITE`: açık gri granit plak, 60 cm | Teraslar, avlu tabanı | Foto 3 |
+| `STAINLESS` | Teras kenarı boru korkuluk (h 0.90, 3 ara çubuk, 1.5 m dikme aralığı) | Foto 1, 3 + DWG "Alü. boru korkuluk h: 90 cm" |
+| `ROOF_METAL`, `ROOF_FLAT`, `CONCRETE` | Kırma/beşik çatılar, düz çatılar, şaft duvarları | Fotoğraflarda görünmüyor → nötr gri |
+
+**Fotoğraflarla eklenen/düzeltilen geometri:**
+- **A blok konsollu saçak:** DWG çatı planındaki parapet konturu, NB ve GD cephelerindeki girintili pencere nişlerinin üzerinden düz geçiyor (68.7 m² saçak). Parapet artık bu konturdan üretiliyor. Altında soffit ve fotoğraflardaki üçgen konsollar var (14 adet, üst kat pencerelerinin arasında).
+- **Giriş portalı:** DWG'deki portalı kullandım (GB görünüşünde alınlık: saçak +4.65, tepe +5.40; planda iki ayak). Kırmızı mermer ayaklar, +3.00 üstü panel, alınlık ve "TKİ MİSAFİRHANE" yazısı eklendi.
+- B/C parapet harpuştası 15 cm'den 30 cm yüksekliğe çıkarıldı (fotoğraftaki mermer alın bandı).
+- Kesme taş kaide +1.00 yerine +0.10'da bitiyor (fotoğrafta zeminden ≈1.1 m).
+- GD açık terasındaki 95 cm duvar kaldırıldı. Fotoğrafta teras kenarında yalnızca korkuluk var; DWG notu teras kenarı istinat yüksekliği (−1.00 → ±0.00) olarak yorumlandı.
+- Teras kenarlarına toplam ≈250 m paslanmaz boru korkuluk eklendi (merdiven ağızları ve bina önü hariç).
+
+Fotoğraf ↔ model karşılaştırmaları `qc/photo_views/COMPARE_PHOTO*.jpg` içinde. GLB, dokuları gömülü (JPEG) olarak taşıyor (≈9 MB). `.blend` dosyası `model/textures/` klasörüne göreli yol kullanıyor.
 
 ## Koordinat ve ölçek
 
 - 1:1, metre. DWG cm'dir (100 birim = 1 m, kot işaretleriyle doğrulandı).
 - Orijin: aks 8 × aks A kesişimi. Z=0 = ±0.00. Dönüşümler `model/dwg_transform.json` ve Blender'daki `TKI_MISAFIRHANE_ORIGIN` boş objesinin özelliklerinde.
-- Poligon: ≈114 000 üçgen (orta seviye).
+- Poligon: ≈122 000 üçgen (orta seviye).
 
 ## Yeniden üretim
 
 ```bash
-# gereksinim: LibreDWG ≥ 0.13 (dwgread), Python 3.11 + bpy==5.0.1, numpy, shapely, matplotlib
+# gereksinim: LibreDWG ≥ 0.13 (dwgread), Python 3.11 + bpy==5.0.1, numpy, shapely, matplotlib, pillow
 bash tools/run_all.sh            # ara dosyalar _work/ içine, çıktılar model/ ve qc/ içine
 ```

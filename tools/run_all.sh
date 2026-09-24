@@ -12,6 +12,7 @@ python3 "$HERE/01_flatten.py"                        # blocks exploded -> flat.p
 python3 "$HERE/02_ground_polys.py"
 python3 "$HERE/build_data.py"                        # shell, roofs, canopies, columns
 python3 "$HERE/build_data2.py"                       # openings (elevation back-projection), stairs, terraces, court
+python3 "$HERE/make_textures.py" "$REPO/model/textures"  # photo-matched seamless PBR textures
 python3 "$HERE/blender_build.py" --out "$REPO/model" # .blend + .glb + .fbx
 rm -f "$REPO"/model/*.blend1
 python3 "$HERE/qc_render.py" --blend "$REPO/model/tki_misafirhane_exterior.blend" --qc "$WORK/qc"
@@ -24,5 +25,7 @@ for f in glob.glob('qc/*.png'):
         a = im[:, :, 3:4]; plt.imsave(f, im[:, :, :3] * a + (1 - a))
 PY
 cp qc/*.png "$REPO/qc/"
+python3 "$HERE/render_photo_views.py" --blend "$REPO/model/tki_misafirhane_exterior.blend" --out "$REPO/qc/photo_views" --samples 48
+python3 "$HERE/photo_compare.py" "$REPO/source/photos" "$REPO/qc/photo_views"
 cp model.json "$REPO/model/model_data.json"
 echo done

@@ -27,19 +27,28 @@ def ring(p, t=T):
 
 # ------------------------------------------------------------------ A BLOCK
 # walls: plinth (travertine + brick band per section), ground floor (travertine per elevation), upper floors (silicone render)
-add_prism('A_PLINTH', 'BUILDING_SHELL', 'STONE_TRAVERTINE', A_zem, -1.0, 1.0, cut='A')            # solid: basement below
-add_prism('A_WALL_GF', 'EXTERIOR_WALLS', 'STONE_TRAVERTINE', ring(A_zem), 1.0, 4.0, cut='A')
+add_prism('A_PLINTH', 'BUILDING_SHELL', 'ASHLAR', A_zem, -1.0, 0.10, cut='A')          # photos: stone base ~1.1 m above grade
+add_prism('A_PLINTH_UPPER', 'BUILDING_SHELL', 'TRAVERTINE', A_zem, 0.10, 1.0, cut='A')            # solid: basement below
+add_prism('A_WALL_GF', 'EXTERIOR_WALLS', 'TRAVERTINE', ring(A_zem), 1.0, 4.0, cut='A')
 add_prism('A_SLAB_GF', 'BUILDING_SHELL', 'CONCRETE', A_zem.buffer(-T + 0.01), 3.7, 4.0)
-add_prism('A_WALL_UPPER', 'EXTERIOR_WALLS', 'PLASTER', ring(A_tip), 4.0, 16.0, cut='A')
-add_prism('A_PARAPET', 'PARAPETS', 'PLASTER', ring(A_tip, 0.25), 16.0, 17.4)
-add_prism('A_PARAPET_COPING', 'PARAPETS', 'STONE_COPING', A_tip.buffer(0.04, join_style=2).difference(A_tip.buffer(-0.29, join_style=2)), 17.4, 17.6)
+add_prism('A_WALL_UPPER', 'EXTERIOR_WALLS', 'PLASTER_A', ring(A_tip), 4.0, 16.0, cut='A')
+# parapet/cornice follows the ROOF PLAN outline, which spans straight across the recessed window bays
+# of the NW and SE faces (photos: deep cornice with consoles over the recessed bays)
+from outline import outline as _outline
+A_cat = _outline('A_cat', layers=('r 4', 'r 2', 'Betonarme', 'r 3', 'r 5'), close=0.3)[0]
+A_cat = Polygon(A_cat.exterior).union(A_tip).buffer(0.01, join_style=2).buffer(-0.01, join_style=2)
+add_prism('A_PARAPET', 'PARAPETS', 'PLASTER_A', ring(A_cat, 0.25), 16.0, 17.4)
+add_prism('A_PARAPET_COPING', 'PARAPETS', 'COPING_A', A_cat.buffer(0.04, join_style=2).difference(A_cat.buffer(-0.29, join_style=2)), 17.4, 17.6)
+overhang = unary_union([g for g in (lambda d: d.geoms if hasattr(d, 'geoms') else [d])(A_cat.difference(A_tip)) if g.area > 0.3])
+add_prism('A_CORNICE_SOFFIT', 'PARAPETS', 'PLASTER_A', overhang.difference(A_cat.buffer(-0.24, join_style=2)).union(overhang.intersection(ring(A_cat, 0.26))), 15.80, 16.0)
+OUT['stats']['A_cornice_overhang_m2'] = round(overhang.area, 1)
 # roof slab (flat part, +16.00) minus atrium opening
 atrium = Polygon([(0.05, -13.44), (6.03, -7.46), (12.62, -14.06), (6.65, -20.03)])
-add_prism('A_ROOF_SLAB', 'ROOF', 'ROOF_MEMBRANE', A_tip.buffer(-0.25, join_style=2).difference(atrium), 15.7, 16.0)
+add_prism('A_ROOF_SLAB', 'ROOF', 'ROOF_FLAT', A_cat.buffer(-0.24, join_style=2).difference(atrium), 15.7, 16.05)   # finish above soffit top
 # floor slab edges at +4/+7/+10/+13 are hidden in the wall; "Fuga" joint lines skipped.
 # roof-top core (+16.00 plan): walls to +19.20 slab, parapet to +19.80 (section A-A)
-add_prism('A_CORE_WALLS', 'BUILDING_SHELL', 'PLASTER', A_16, 16.0, 19.6)
-add_prism('A_CORE_COPING', 'PARAPETS', 'STONE_COPING', A_16.buffer(0.04, join_style=2), 19.6, 19.8)
+add_prism('A_CORE_WALLS', 'BUILDING_SHELL', 'PLASTER_A', A_16, 16.0, 19.6)
+add_prism('A_CORE_COPING', 'PARAPETS', 'COPING_A', A_16.buffer(0.04, join_style=2), 19.6, 19.8)
 # atrium roof: mono-pitch metal roof, +16.95 (axis-1 side) -> +16.00 (axis-8 side) per section A-A
 c = np.array(atrium.exterior.coords)[:-1]
 # axis-8 side edge is the NE edge (6.03,-7.46)-(12.62,-14.06); height falls toward it
@@ -53,11 +62,11 @@ fv = []; ff = []
 for i in range(4):
     p, q = c[i], c[(i + 1) % 4]
     k = len(fv); fv += [[*p, 16.0], [*q, 16.0], [*q, atr_z(q)], [*p, atr_z(p)]]; ff.append([k, k + 1, k + 2, k + 3])
-add_mesh('A_ATRIUM_ROOF_FASCIA', 'ROOF', 'ROOF_METAL', fv, ff, thick=0.0)
+add_mesh('A_ATRIUM_ROOF_FASCIA', 'ROOF', 'RED_PAINT', fv, ff, thick=0.0)
 # inclined glass curtain wall ("Egik Cam"): bottom on axis-8 line at +5.00, top 1.0 m inward at +15.90
 b0, b1 = np.array([6.79, -6.81]), np.array([13.30, -13.31])
 t0, t1 = np.array([6.08, -7.51]), np.array([12.59, -14.02])
-add_mesh('A_INCLINED_CURTAIN_GLASS', 'WINDOW_GLASS', 'GLASS', [[*b0, 5.0], [*b1, 5.0], [*t1, 15.9], [*t0, 15.9]], [[0, 1, 2, 3]], thick=0.0)
+add_mesh('A_INCLINED_CURTAIN_GLASS', 'WINDOW_GLASS', 'BLUE_GLASS', [[*b0, 5.0], [*b1, 5.0], [*t1, 15.9], [*t0, 15.9]], [[0, 1, 2, 3]], thick=0.0)
 # curtain-wall grid: 6 vertical mullions (plan 'A-Cam' divisions) + transoms at floor lines
 cw_v = []; cw_f = []
 def bar(pa, pb, w=0.08, d=0.10):
@@ -84,23 +93,29 @@ for z in (5.0, 7.0, 10.0, 13.0, 15.9):
     s = (z - 5.0) / (15.9 - 5.0)
     pa = b0 + (t0 - b0) * s; pb = b1 + (t1 - b1) * s
     bar([*pa, z], [*pb, z])
-add_mesh('A_INCLINED_CURTAIN_FRAME', 'WINDOWS', 'FRAME_ALU', cw_v, cw_f)
+add_mesh('A_INCLINED_CURTAIN_FRAME', 'WINDOWS', 'FRAME_DARK', cw_v, cw_f)
 # cut the A upper wall where the inclined glazing replaces the facade (+5.00..+15.90)
 OUT['openings'].append(dict(target='A', kind='box', p0=[6.79 - 0.2, -6.81 + 0.2], p1=[13.30 + 0.2, -13.31 - 0.2],
                             n=[np.sqrt(.5), np.sqrt(.5)], z0=5.0, z1=15.95, depth_out=0.6, depth_in=1.2))
 
 # ------------------------------------------------------------------ B/C BLOCK
-add_prism('B_PLINTH', 'BUILDING_SHELL', 'STONE_CLADDING', B_zem, -1.0, 0.0, cut='B')
+add_prism('B_PLINTH', 'BUILDING_SHELL', 'ASHLAR', B_zem, -1.0, 0.0, cut='B')
 Bring = ring(B_zem)
 hi = unary_union([sbox(47.4, -6.9, 90, 30), sbox(33.8, 10.3, 90, 30)])
 sw = sbox(-20, -40, 20.5, 0.5)
-add_prism('B_WALL_H560', 'EXTERIOR_WALLS', 'PLASTER', Bring.intersection(hi), 0.0, 5.45, cut='B')
-add_prism('B_WALL_H480', 'EXTERIOR_WALLS', 'PLASTER', Bring.intersection(sw).difference(hi), 0.0, 4.65, cut='B')
-add_prism('B_WALL_H460', 'EXTERIOR_WALLS', 'PLASTER', Bring.difference(hi).difference(sw), 0.0, 4.45, cut='B')
-add_prism('B_COPING_H560', 'PARAPETS', 'STONE_COPING', Bring.buffer(0.04, join_style=2).intersection(B_zem.buffer(0.04, join_style=2)).intersection(hi), 5.45, 5.60)
-add_prism('B_COPING_H480', 'PARAPETS', 'STONE_COPING', Bring.buffer(0.04, join_style=2).intersection(sw).difference(hi), 4.65, 4.80)
-add_prism('B_COPING_H460', 'PARAPETS', 'STONE_COPING', Bring.buffer(0.04, join_style=2).difference(hi).difference(sw), 4.45, 4.60)
-add_prism('B_ROOF_SLAB', 'ROOF', 'ROOF_MEMBRANE', B_zem.buffer(-T + 0.01, join_style=2), 3.7, 4.0)
+TZ = sbox(20.5, -40, 71.0, -5.8)     # facade behind the south colonnade/pergola (photos: ochre render below the beams)
+def bwall(name, geom, top):
+    add_prism(name + '_T_LOW', 'EXTERIOR_WALLS', 'OCHRE', geom.intersection(TZ), 0.0, 3.70, cut='B')
+    add_prism(name + '_T_HIGH', 'EXTERIOR_WALLS', 'TRAVERTINE', geom.intersection(TZ), 3.70, top, cut='B')
+    add_prism(name, 'EXTERIOR_WALLS', 'TRAVERTINE', geom.difference(TZ), 0.0, top, cut='B')
+bwall('B_WALL_H560', Bring.intersection(hi), 5.30)
+bwall('B_WALL_H480', Bring.intersection(sw).difference(hi), 4.50)
+bwall('B_WALL_H460', Bring.difference(hi).difference(sw), 4.30)
+cop = Bring.buffer(0.04, join_style=2).intersection(B_zem.buffer(0.04, join_style=2))
+add_prism('B_COPING_H560', 'PARAPETS', 'RED_MARBLE', cop.intersection(hi), 5.30, 5.60)
+add_prism('B_COPING_H480', 'PARAPETS', 'RED_MARBLE', cop.intersection(sw).difference(hi), 4.50, 4.80)
+add_prism('B_COPING_H460', 'PARAPETS', 'RED_MARBLE', cop.difference(hi).difference(sw), 4.30, 4.60)
+add_prism('B_ROOF_SLAB', 'ROOF', 'ROOF_FLAT', B_zem.buffer(-T + 0.01, join_style=2), 3.7, 4.0)
 
 def planes_roof(name, region, planes, mat='ROOF_METAL', thick=0.12):
     """lower envelope of planes z = a*x + b*y + c, clipped to region -> planar faces"""
@@ -136,7 +151,7 @@ hall = Polygon([(48.9, -5.23), (69.72, -5.23), (69.72, 10.86), (48.9, 10.86)])
 k = (7.65 - 5.60) / ((10.86 + 5.23) / 2)
 x0, x1, y0, y1 = 48.9, 69.72, -5.23, 10.86
 planes_roof('B_ROOF_HALL', hall, [(0, k, 5.60 - k * y0), (0, -k, 5.60 + k * y1), (k, 0, 5.60 - k * x0), (-k, 0, 5.60 + k * x1)])
-add_prism('B_HALL_ROOF_BASE', 'ROOF', 'ROOF_MEMBRANE', hall.buffer(0.6, join_style=2).intersection(B_zem), 5.30, 5.60)
+add_prism('B_HALL_ROOF_BASE', 'ROOF', 'ROOF_FLAT', hall.buffer(0.6, join_style=2).intersection(B_zem), 5.30, 5.60)
 # West wing: gable, eaves +4.15 on north (y=12.0) and south (y=-6.4), ridge +5.50 at y=2.79
 W = Polygon([(9.8, 9.8), (12.0, 12.0), (34.3, 12.0), (34.3, 10.8), (47.4, 10.8), (47.4, -6.35), (20.6, -6.45), (20.6, -1.0)])
 kw = (5.50 - 4.15) / 9.2
@@ -150,7 +165,23 @@ sky_c = np.array([uw(11.37, 3.31), uw(28.35, 3.31), uw(28.35, 6.91), uw(11.37, 6
 skyP = Polygon(sky_c)
 ks = (5.20 - 4.80) / 1.80
 planes_roof('B_SKYLIGHT_GLASS', skyP, [(ks * w[0], ks * w[1], 4.80 - ks * 3.31), (-ks * w[0], -ks * w[1], 4.80 + ks * 6.91)], mat='GLASS', thick=0.02)
-add_prism('B_SKYLIGHT_CURB', 'ROOF', 'FRAME_ALU', skyP.difference(skyP.buffer(-0.12, join_style=2)), 4.0, 4.80)
+add_prism('B_SKYLIGHT_CURB', 'ROOF', 'RED_ALU', skyP.difference(skyP.buffer(-0.12, join_style=2)), 4.0, 4.80)
+
+# ENTRANCE PORTAL: piers on the skylight end line (plan squares at w=3.46 / 6.79, u~28.5), pediment eaves +4.65,
+# apex +5.40 (GB elevation), panel below the pediment from +3.00 (door head in GB); red marble per photo
+def uwp(uu, ww): return (uu * u + ww * w)
+for k_, wc in enumerate((3.46, 6.79)):
+    add_prism(f'ENTRANCE_PORTAL_PIER_{k_}', 'ENTRANCE', 'RED_MARBLE',
+              Polygon([uwp(28.25, wc - 0.25), uwp(28.75, wc - 0.25), uwp(28.75, wc + 0.25), uwp(28.25, wc + 0.25)]), 0.0, 4.65)
+add_prism('ENTRANCE_PORTAL_LINTEL', 'ENTRANCE', 'RED_MARBLE',
+          Polygon([uwp(28.25, 3.21), uwp(28.75, 3.21), uwp(28.75, 7.04), uwp(28.25, 7.04)]), 3.00, 4.65)
+pv = []; pf = []
+for uu in (28.25, 28.75):
+    for ww, zz in ((3.11, 4.65), (5.12, 5.40), (7.14, 4.65)):
+        pv.append([*uwp(uu, ww), zz])
+pf = [[0, 1, 2], [5, 4, 3], [0, 3, 4, 1], [1, 4, 5, 2], [2, 5, 3, 0]]
+add_mesh('ENTRANCE_PORTAL_PEDIMENT', 'ENTRANCE', 'RED_MARBLE', pv, pf)
+OUT['sign'] = dict(text='TKİ\nMİSAFİRHANE', center=[*uwp(28.76, 5.125), 3.80], normal=[float(u[0]), float(u[1])], height=0.30)
 
 # ------------------------------------------------------------------ PERGOLA / CANOPY beams (+4.00 top, B roof plan)
 segs2 = []
@@ -178,7 +209,7 @@ beam_polys = [g for g in (bu.geoms if hasattr(bu, 'geoms') else [bu]) if g.area 
 OUT['stats']['pergola_beams'] = len(beam_polys)
 for i, p in enumerate(beam_polys):
     ztop = 4.70 if p.centroid.x > 79 and p.centroid.y < -14 else 4.00
-    add_prism(f'CANOPY_BEAM_{i:02d}', 'CANOPIES', 'CONCRETE', p, ztop - 0.30, ztop)
+    add_prism(f'CANOPY_BEAM_{i:02d}', 'CANOPIES', 'TRAVERTINE', p, ztop - 0.30, ztop)
 
 # SE skylight ("+4.60 ISIKLIK MAHYA KOTU", beams "+4.00 KIRIS UST KOTU"): glazed gable over the SE beam grid
 se_beams = unary_union([LineString(P) for P, L in plan_items('B_cat', ['r 4']) if P[:, 0].min() > 75 and P[:, 1].max() < -7 and P[:, 1].min() > -16 and np.linalg.norm(P[-1] - P[0]) > 0.8])
@@ -209,7 +240,7 @@ for i, g in enumerate(colU):
     court = (-3 < x_ < 12 and 0 < y_ < 12)
     z0 = -4.15 if court else 0.0
     ztop = 3.70 if y_ < -5 else 4.0
-    add_prism(f'COLUMN_{i:02d}', 'COLUMNS', 'CONCRETE', g, z0, ztop)
+    add_prism(f'COLUMN_{i:02d}', 'COLUMNS', 'TRAVERTINE', g, z0, ztop)
 
 json.dump(OUT, open('model_part1.json', 'w'))
 print({k: len(v) if isinstance(v, list) else v for k, v in OUT.items()})
