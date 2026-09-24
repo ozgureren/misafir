@@ -1,0 +1,117 @@
+{
+  "units": {
+    "dwg": "centimetre (INSUNITS=0; confirmed by level marks: 100 units = 1.00 m)",
+    "model": "metre"
+  },
+  "note": "DWG model-space coordinates are a SHEET LAYOUT (all plans/sections/elevations placed side by side, ~845 m wide); they are not survey/geodetic coordinates. The model therefore uses a local origin; placing it on the TKI campus requires a site survey point or the campus base map.",
+  "local_origin": {
+    "definition": "intersection of structural grid axis 8 and axis A (grid shared by A block and B/C block)",
+    "dwg_point_cm_in_BC_ground_floor_plan": [
+      486527.0,
+      39614.0
+    ],
+    "z0": "+-0.00 project level (B/C ground floor finished level). A block ground floor = +1.00, natural ground in elevations = -1.00"
+  },
+  "plan_to_local": {
+    "formula_BC": "local_m = (P_dwg_cm - T) / 100",
+    "B_C_Zemin_Kat_Plani": {
+      "T": [
+        486527.0,
+        39614.0
+      ],
+      "rotation_deg": 0
+    },
+    "B_C_Bodrum_Kat_Plani": {
+      "T": [
+        477132.0,
+        39614.0
+      ],
+      "rotation_deg": 0
+    },
+    "B_C_Cati_Plani": {
+      "T": [
+        496391.0,
+        39614.0
+      ],
+      "rotation_deg": 0
+    },
+    "formula_A": "local_m = R(+45 deg) * (P_dwg_cm - A8) / 100   (A block is rotated 45 deg CCW relative to B/C on site)",
+    "A_Bodrum_Kat_Plani": {
+      "A8": [
+        464762.0,
+        40948.0
+      ]
+    },
+    "A_Zemin_Kat_Plani": {
+      "A8": [
+        468109.0,
+        40948.0
+      ]
+    },
+    "A_Tip_Kat_Plani": {
+      "A8": [
+        471370.0,
+        40948.0
+      ]
+    },
+    "A_+16.00_Kotu_Plani": {
+      "A8": [
+        473672.0,
+        40948.0
+      ]
+    },
+    "A_Cati_Plani": {
+      "A8": [
+        475684.0,
+        40948.0
+      ]
+    }
+  },
+  "elevation_to_local": {
+    "formula": "elev_x_cm = c0 + 100 * dot(p_local_xy, r) ; elev_y_cm = zero + 100 * z",
+    "DOGU_CEPHESI": {
+      "view_dir": [
+        0,
+        -1
+      ],
+      "r": [
+        -1,
+        0
+      ],
+      "c0": 526962.0,
+      "zero": 38528.0
+    },
+    "KUZEY_BATI_CEPHESI": {
+      "view_dir": [
+        0.7071,
+        0.7071
+      ],
+      "r": [
+        0.7071,
+        -0.7071
+      ],
+      "c0": 528828.0,
+      "zero": 38528.0
+    },
+    "GUNEY_BATI_CEPHESI": {
+      "view_dir": [
+        -0.7071,
+        0.7071
+      ],
+      "r": [
+        0.7071,
+        0.7071
+      ],
+      "c0": 538574.0,
+      "zero": 38568.0
+    }
+  },
+  "orientation": {
+    "derived_from": "elevation titles (no north arrow / grid north found in the DWG): DOGU = viewed from local +Y, KUZEY BATI from local (-X,-Y), GUNEY BATI from local (+X,-Y)",
+    "local_+Y": "East",
+    "local_-X": "North",
+    "local_+X": "South",
+    "local_-Y": "West"
+  },
+  "blender_axes": "Blender Z-up, metres. GLB export uses glTF Y-up (+Y_gltf = +Z_blender). FBX: unit scale applied (metres)."
+}
